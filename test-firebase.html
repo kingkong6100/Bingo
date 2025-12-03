@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Test</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+</head>
+<body>
+    <h1>Firebase Test</h1>
+    <div id="status">Testing...</div>
+    
+    <script>
+        setTimeout(() => {
+            const status = document.getElementById('status');
+            
+            if (typeof firebase === 'undefined') {
+                status.innerHTML = "❌ Firebase SDK not loaded";
+                status.style.color = 'red';
+            } else if (!firebase.apps.length) {
+                status.innerHTML = "❌ Firebase app not initialized";
+                status.style.color = 'red';
+            } else {
+                status.innerHTML = "✅ Firebase loaded successfully!";
+                status.style.color = 'green';
+                
+                // Test database connection
+                const db = firebase.database();
+                const testRef = db.ref('test');
+                
+                testRef.set({
+                    test: 'connection',
+                    timestamp: Date.now()
+                }).then(() => {
+                    status.innerHTML += "<br>✅ Database connection successful!";
+                }).catch(error => {
+                    status.innerHTML += `<br>❌ Database error: ${error.message}`;
+                    status.style.color = 'orange';
+                });
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
