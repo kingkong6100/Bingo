@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo Game - Number Draw</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Roboto:wght@300;400&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-dice"></i> Interactive Bingo Game</h1>
+            <p class="subtitle">Host Interface - Draw Numbers for Players</p>
+        </header>
+
+        <main>
+            <div class="game-area">
+                <div class="draw-section">
+                    <div class="current-number">
+                        <h2>Current Number</h2>
+                        <div id="current-number" class="number-display">--</div>
+                        <div class="number-label" id="number-label">Waiting for draw</div>
+                    </div>
+                    
+                    <div class="controls">
+                        <button id="draw-btn" class="btn draw-btn">
+                            <i class="fas fa-random"></i> Draw Next Number
+                        </button>
+                        <button id="reset-btn" class="btn reset-btn">
+                            <i class="fas fa-redo"></i> Reset Game
+                        </button>
+                    </div>
+                    
+                    <div class="history-section">
+                        <h3>Drawn Numbers History</h3>
+                        <div id="history-container" class="history-container">
+                            <p class="empty-history">No numbers drawn yet</p>
+                        </div>
+                        <div class="stats">
+                            <span>Total Drawn: <span id="total-drawn">0</span></span>
+                            <span>Remaining: <span id="remaining">75</span></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-section">
+                    <div class="card">
+                        <h3><i class="fas fa-info-circle"></i> How to Play</h3>
+                        <ol>
+                            <li>Click "Draw Next Number" to reveal a new Bingo number</li>
+                            <li>Players mark the drawn numbers on their answer sheets</li>
+                            <li>The first player to complete a line (horizontal, vertical, or diagonal) wins!</li>
+                            <li>Reset the game to start a new round</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="card">
+                        <h3><i class="fas fa-mobile-alt"></i> Player Access</h3>
+                        <p>Players can access their answer sheets by visiting:</p>
+                        <div class="player-link">
+                            <input type="text" id="player-url" value="player.html" readonly>
+                            <button id="copy-url" class="btn copy-btn">
+                                <i class="far fa-copy"></i> Copy URL
+                            </button>
+                        </div>
+                        <p class="qr-info">Or scan this QR code with a mobile device:</p>
+                        <div id="qrcode" class="qrcode"></div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3><i class="fas fa-trophy"></i> Recent Winners</h3>
+                        <ul id="winners-list">
+                            <li>No winners yet in this session</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Bingo Game &copy; <span id="current-year">2023</span> | Designed for GitHub Pages</p>
+            <p class="github-link">
+                <i class="fab fa-github"></i> 
+                <a href="https://github.com" target="_blank">View on GitHub</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="winner-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-trophy"></i> BINGO! We Have a Winner!</h2>
+            <div class="winner-animation">
+                <div class="confetti"></div>
+                <div class="confetti"></div>
+                <div class="confetti"></div>
+                <div class="confetti"></div>
+                <div class="confetti"></div>
+            </div>
+            <p id="winner-message">A player has called BINGO!</p>
+            <div class="modal-buttons">
+                <button id="confirm-winner" class="btn draw-btn">Confirm Winner</button>
+                <button id="cancel-winner" class="btn reset-btn">False Alarm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
