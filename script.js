@@ -1,23 +1,14 @@
-// Main Bingo Game Script
-document.addEventListener('DOMContentLoaded', function() {
+// Main Bingo Game Script with Firebase
+document.addEventListener('DOMContentLoaded', async function() {
     // Game state
     let gameState = {
         drawnNumbers: [],
         allNumbers: generateAllNumbers(),
         gameActive: true,
         winners: [],
-        lastUpdate: Date.now()
+        gameId: generateGameId(),
+        hostId: generatePlayerId()
     };
-    
-    // Load saved state if exists
-    const savedState = localStorage.getItem('bingoHostState');
-    if (savedState) {
-        const parsed = JSON.parse(savedState);
-        gameState.drawnNumbers = parsed.drawnNumbers || [];
-        gameState.allNumbers = parsed.allNumbers || generateAllNumbers();
-        gameState.gameActive = parsed.gameActive !== false;
-        gameState.winners = parsed.winners || [];
-    }
     
     // DOM Elements
     const currentNumberEl = document.getElementById('current-number');
@@ -35,9 +26,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelWinnerBtn = document.getElementById('cancel-winner');
     const closeModalBtn = document.querySelector('.close');
     
-    // Initialize QR Code
+    // Initialize Firebase
+    let database;
+    try {
+        // Check if Firebase is already initialized
+        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+            database = firebase.database();
+        } else {
+            // Fallback to localStorage if Firebase fails
+            console.warn("Firebase not loaded, falling back to localStorage");
+            database = null;
+        }
+    } catch (error) {
+        console.error("Firebase error:", error);
+        database = null;
+    }
+    
+    // Initialize QR Code with game ID
     const qrcodeDiv = document.getElementById('qrcode');
-    const playerUrl = window.location.origin + '/Bingo/player.html';
+    const playerUrl = `${window.location.origin}/player.html?game=${gameState.gameId}`;
     playerUrlEl.value = playerUrl;
     
     // Generate QR code
@@ -55,7 +62,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize game
     updateGameDisplay();
-    saveGameState();
+    
+    // Save initial game state to Firebase
+    if (database) {
+        await saveGameStateToFirebase();
+        setupFirebaseListeners();
+    } else {
+        saveGameStateToLocalStorage();
+    }
     
     // Event Listeners
     drawBtn.addEventListener('click', drawNumber);
@@ -72,10 +86,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Auto-save state periodically
-    setInterval(saveGameState, 2000);
+    // Setup player count display
+    setupPlayerCounter();
     
     // Functions
+    function generateGameId() {
+        // Generate a unique 6-character game ID
+        return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+    
+    function generatePlayerId() {
+        return `HOST-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+    }
+    
     function generateAllNumbers() {
         let numbers = [];
         for (let i = 1; i <= 75; i++) {
@@ -84,14 +107,14 @@ document.addEventListener('DOMContentLoaded', function() {
         return numbers;
     }
     
-    function drawNumber() {
+    async function drawNumber() {
         if (!gameState.gameActive) {
-            alert("Game is not active. Please reset to start a new game.");
+            showToast("Game is not active. Please reset to start a new game.", "warning");
             return;
         }
         
         if (gameState.allNumbers.length === 0) {
-            alert("All numbers have been drawn!");
+            showToast("All numbers have been drawn! Game over.", "info");
             return;
         }
         
@@ -101,11 +124,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add to drawn numbers
         gameState.drawnNumbers.unshift(drawnNumber);
-        gameState.lastUpdate = Date.now();
         
         // Update display
         updateGameDisplay();
-        saveGameState();
+        
+        // Save to database
+        if (database) {
+            await saveGameStateToFirebase();
+        } else {
+            saveGameStateToLocalStorage();
+        }
         
         // Animate the number draw
         animateNumberDraw(drawnNumber);
@@ -113,15 +141,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Check if this is the last number
         if (gameState.allNumbers.length === 0) {
             setTimeout(() => {
-                alert("All numbers have been drawn! Game over.");
+                showToast("All numbers have been drawn! Game over.", "info");
             }, 500);
-        }
-        
-        // Simulate a player winning occasionally (for demo)
-        if (gameState.drawnNumbers.length > 20 && Math.random() > 0.8) {
-            setTimeout(() => {
-                showWinnerModal();
-            }, 1000);
         }
     }
     
@@ -203,29 +224,62 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function saveGameState() {
-        // Save to localStorage so player pages can access
-        localStorage.setItem('bingoHostState', JSON.stringify(gameState));
+    async function saveGameStateToFirebase() {
+        if (!database) return;
         
-        // Also save just the current numbers for player pages
-        localStorage.setItem('bingoCurrentNumber', 
-            gameState.drawnNumbers.length > 0 ? gameState.drawnNumbers[0] : '--');
-        localStorage.setItem('bingoDrawnNumbers', JSON.stringify(gameState.drawnNumbers));
-        localStorage.setItem('bingoLastUpdate', gameState.lastUpdate.toString());
+        try {
+            await database.ref(`games/${gameState.gameId}`).set({
+                drawnNumbers: gameState.drawnNumbers,
+                allNumbers: gameState.allNumbers,
+                gameActive: gameState.gameActive,
+                winners: gameState.winners,
+                lastUpdate: Date.now(),
+                hostId: gameState.hostId
+            });
+            
+            // Also save current number separately for easy access
+            await database.ref(`current/${gameState.gameId}`).set({
+                currentNumber: gameState.drawnNumbers.length > 0 ? gameState.drawnNumbers[0] : null,
+                totalDrawn: gameState.drawnNumbers.length,
+                lastDrawn: gameState.drawnNumbers.length > 0 ? gameState.drawnNumbers[0] : null
+            });
+        } catch (error) {
+            console.error("Error saving to Firebase:", error);
+            showToast("Error saving game state", "error");
+        }
     }
     
-    function resetGame() {
-        if (confirm("Are you sure you want to reset the game? All drawn numbers will be cleared.")) {
-            gameState = {
-                drawnNumbers: [],
-                allNumbers: generateAllNumbers(),
-                gameActive: true,
-                winners: [],
-                lastUpdate: Date.now()
-            };
-            updateGameDisplay();
-            saveGameState();
+    function saveGameStateToLocalStorage() {
+        localStorage.setItem(`bingo_${gameState.gameId}`, JSON.stringify(gameState));
+        localStorage.setItem(`bingo_current_${gameState.gameId}`, 
+            gameState.drawnNumbers.length > 0 ? gameState.drawnNumbers[0] : '--');
+    }
+    
+    async function resetGame() {
+        if (!confirm("Are you sure you want to reset the game? All drawn numbers will be cleared.")) {
+            return;
         }
+        
+        gameState = {
+            drawnNumbers: [],
+            allNumbers: generateAllNumbers(),
+            gameActive: true,
+            winners: [],
+            gameId: gameState.gameId, // Keep same game ID
+            hostId: gameState.hostId
+        };
+        
+        updateGameDisplay();
+        
+        if (database) {
+            await saveGameStateToFirebase();
+            // Clear player bingo calls
+            await database.ref(`bingoCalls/${gameState.gameId}`).remove();
+        } else {
+            saveGameStateToLocalStorage();
+        }
+        
+        showToast("Game reset successfully!", "success");
     }
     
     function copyPlayerUrl() {
@@ -246,24 +300,65 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (err) {
             console.error('Failed to copy: ', err);
             document.execCommand('copy');
-            alert('URL copied to clipboard!');
+            showToast('URL copied to clipboard!', 'success');
         }
     }
     
-    function showWinnerModal() {
-        const playerId = `Player-${Math.floor(Math.random() * 1000)}`;
-        const winningLines = [
-            "Top Row (B-I-N-G-O)",
-            "Middle Row (Free Space included)",
-            "Bottom Row",
-            "First Column (B)",
-            "Last Column (O)",
-            "Diagonal"
-        ];
-        const randomLine = winningLines[Math.floor(Math.random() * winningLines.length)];
+    function setupFirebaseListeners() {
+        if (!database) return;
         
+        // Listen for player bingo calls
+        database.ref(`bingoCalls/${gameState.gameId}`).on('child_added', (snapshot) => {
+            const bingoCall = snapshot.val();
+            if (bingoCall && !bingoCall.processed) {
+                showWinnerModalWithPlayer(
+                    bingoCall.playerId,
+                    bingoCall.playerName,
+                    bingoCall.winningLine,
+                    snapshot.key
+                );
+            }
+        });
+        
+        // Listen for player connections
+        database.ref(`players/${gameState.gameId}`).on('value', (snapshot) => {
+            const players = snapshot.val() || {};
+            const playerCount = Object.keys(players).length;
+            updatePlayerCount(playerCount);
+        });
+    }
+    
+    function setupPlayerCounter() {
+        // Create player counter display
+        const playerCounter = document.createElement('div');
+        playerCounter.id = 'player-counter';
+        playerCounter.className = 'player-counter';
+        playerCounter.innerHTML = `
+            <i class="fas fa-users"></i>
+            <span id="player-count">0</span> players connected
+        `;
+        
+        // Add to header
+        const header = document.querySelector('header');
+        if (header) {
+            header.appendChild(playerCounter);
+        }
+    }
+    
+    function updatePlayerCount(count) {
+        const playerCountEl = document.getElementById('player-count');
+        if (playerCountEl) {
+            playerCountEl.textContent = count;
+        }
+    }
+    
+    function showWinnerModalWithPlayer(playerId, playerName, winningLine, callId) {
         document.getElementById('winner-message').textContent = 
-            `${playerId} has called BINGO with a ${randomLine}!`;
+            `${playerName} (${playerId}) has called BINGO with ${winningLine}!`;
+        
+        // Store call ID for processing
+        document.getElementById('winner-modal').dataset.callId = callId;
+        document.getElementById('winner-modal').dataset.playerId = playerId;
         
         winnerModal.style.display = 'flex';
     }
@@ -272,31 +367,58 @@ document.addEventListener('DOMContentLoaded', function() {
         winnerModal.style.display = 'none';
     }
     
-    function confirmWinner() {
+    async function confirmWinner() {
+        const callId = document.getElementById('winner-modal').dataset.callId;
+        const playerId = document.getElementById('winner-modal').dataset.playerId;
         const message = document.getElementById('winner-message').textContent;
-        const player = message.split(' ')[0];
-        const line = message.split('with a ')[1].replace('!', '');
+        
+        // Extract player name and line from message
+        const match = message.match(/(.+) has called BINGO with (.+)!/);
+        const playerName = match ? match[1] : "Player";
+        const line = match ? match[2] : "a winning line";
         
         // Add to winners list
         gameState.winners.unshift({
-            player: player,
+            player: playerName,
             line: line,
-            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            playerId: playerId
         });
         
-        // Update display and save
+        // Update display
         updateWinnersList();
-        saveGameState();
+        
+        // Mark bingo call as processed
+        if (database && callId) {
+            await database.ref(`bingoCalls/${gameState.gameId}/${callId}/processed`).set(true);
+            
+            // Broadcast winner to all players
+            await database.ref(`winners/${gameState.gameId}`).push({
+                playerName: playerName,
+                playerId: playerId,
+                line: line,
+                time: Date.now()
+            });
+        }
+        
+        // Save game state
+        if (database) {
+            await saveGameStateToFirebase();
+        } else {
+            saveGameStateToLocalStorage();
+        }
         
         // Close modal
         closeWinnerModal();
         
         // Show confirmation
-        alert(`Winner confirmed! ${player} has won with ${line}.`);
+        showToast(`Winner confirmed! ${playerName} has won with ${line}.`, 'success');
     }
     
-    // Clear old state on page load to prevent conflicts
-    window.addEventListener('beforeunload', function() {
-        // Don't clear on host page - we want to keep the state
-    });
+    // Toast notification system
+    function showToast(message, type = 'info', duration = 3000) {
+        // Implementation from previous examples
+        console.log(`${type}: ${message}`);
+        alert(message); // Simple fallback
+    }
 });
