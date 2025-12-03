@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize QR Code
     const qrcodeDiv = document.getElementById('qrcode');
-    const playerUrl = window.location.origin + '/player.html';
+    const playerUrl = window.location.origin + '/Bingo/player.html';
     playerUrlEl.value = playerUrl;
     
     // Generate QR code
