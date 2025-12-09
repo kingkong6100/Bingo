@@ -1,4 +1,4 @@
-// script.js - Simplified with better error handling
+reset-btn// script.js - Simplified with better error handling
 document.addEventListener('DOMContentLoaded', async function() {
     console.log("Game loading...");
     
@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         await saveGameState();
         
         // Update player URL with new game ID
-        const newPlayerUrl = `${window.location.origin}/player.html?game=${gameState.gameId}`;
+        const newPlayerUrl = `${window.location.origin}/Bingo/player.html?game=${gameState.gameId}`;
         elements.playerUrl.value = newPlayerUrl;
         
         // Update QR Code
