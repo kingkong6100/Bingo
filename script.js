@@ -1,4 +1,4 @@
-reset-btn// script.js - Simplified with better error handling
+
 document.addEventListener('DOMContentLoaded', async function() {
     console.log("Game loading...");
     
