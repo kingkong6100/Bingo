@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     function initGame() {
         // Generate player URL with game ID
-        const playerUrl = `${window.location.origin}/player.html?game=${gameState.gameId}`;
+        const playerUrl = `${window.location.origin}/Bingo/player.html?game=${gameState.gameId}`;
         elements.playerUrl.value = playerUrl;
         
         // Generate QR Code
